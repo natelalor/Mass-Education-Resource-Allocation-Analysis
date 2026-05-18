@@ -9,7 +9,7 @@ input_file_path = Path("./data/raw_xlsx")
 output_file_path = Path("./data/raw_csv")
 output_file_path.mkdir(exist_ok=True)
 
-# for each xlsx file in directory, convert to csv file
+# for each xlsx file in directory, convert to csv file, give user confirmation
 for xlsx_file in input_file_path.glob("*.xlsx"):
     temp_dataframe = pd.read_excel(xlsx_file)
     temp_dataframe.to_csv(output_file_path / f"{xlsx_file.stem}.csv", index=False)
