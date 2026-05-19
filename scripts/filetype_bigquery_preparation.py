@@ -11,6 +11,8 @@ output_file_path.mkdir(exist_ok=True)
 
 # for each xlsx file in directory, convert to csv file, give user confirmation
 for xlsx_file in input_file_path.glob("*.xlsx"):
-    temp_dataframe = pd.read_excel(xlsx_file)
+    # skip 1 row because it's the large header i.e. "2024 Salaries Report" - not needed
+    # dtype forces pandas to read all columns as strings, will reformat schema with SQL
+    temp_dataframe = pd.read_excel(xlsx_file, skiprows=1, dtype=str)
     temp_dataframe.to_csv(output_file_path / f"{xlsx_file.stem}.csv", index=False)
     print(f"Converted: {xlsx_file.name}")
