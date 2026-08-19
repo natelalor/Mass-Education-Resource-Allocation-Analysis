@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 from pathlib import Path
+from scipy.stats import pearsonr
+import matplotlib.pyplot as plt
 
 # python file to gather clean, sanitized data from SQL to now organize, prep, & analyze using Pandas
 
@@ -19,8 +21,13 @@ def main():
     student_attendance_df = pd.read_csv("./data/clean_csv/student_attendance.csv", dtype={"DISTRICT_CODE": str})
     teacher_salaries_df = pd.read_csv("./data/clean_csv/teacher_salaries.csv", dtype={"DISTRICT_CODE": str})
 
-    # example of explore function, which is no longer needed :)
-    # print(explore(teacher_salaries_df, "Teacher Salaries CSV"))
+    # rename art_courses_df grade columns so they're unambiguous once merged
+    # (e.g. KINDERGARTEN -> ART_KINDERGARTEN), since these represent ART COURSE
+    # enrollment per grade, not TOTAL DISTRICT enrollment per grade
+    art_grade_cols = ["KINDERGARTEN", "FIRST_GRADE", "SECOND_GRADE", "THIRD_GRADE", "FOURTH_GRADE",
+                       "FIFTH_GRADE", "SIXTH_GRADE", "SEVENTH_GRADE", "EIGHTH_GRADE", "NINTH_GRADE",
+                       "TENTH_GRADE", "ELEVENTH_GRADE", "TWELVETH_GRADE", "ALL_GRADES"]
+    art_courses_df = art_courses_df.rename(columns={col: f"ART_{col}" for col in art_grade_cols})
 
     # 1 row per district_code rather than 3 
     # (for staff, administrators, all, its just the "all" row)
@@ -56,11 +63,38 @@ def main():
     merged = merge_on_district(merged, art_courses_df, "art")
     merged = merge_on_district(merged, testing_wide, "testing")
 
+    # build a comparable "art access" metric: % of district students enrolled in an art course
+    merged["ART_PARTICIPATION_RATE"] = merged["ART_ALL_GRADES"] / merged["TOTAL_STUDENTS"]
+
     # ============================================================== #
     #      ANALYSIS - CORRELATIONS, RELATIONSHIPS, INSIGHTS          #
     # ============================================================== #
 
-    # analysis here
+    # correlations to graduation rate numbers
+    numeric_cols = merged.select_dtypes(include=[np.number]).columns
+    corr_matrix = merged[numeric_cols].corr()
+
+    # print(corr_matrix["PERCENTAGE_GRADUATED"].sort_values(ascending=False))
+
+    # statistical significance of correlations
+    results = []
+    for col in numeric_cols:
+        if col == "PERCENTAGE_GRADUATED":
+            continue
+        valid = merged[["PERCENTAGE_GRADUATED", col]].dropna()
+        if len(valid) > 2:
+            r, p = pearsonr(valid["PERCENTAGE_GRADUATED"], valid[col])
+            results.append({"column": col, "r": r, "p": p, "n": len(valid)})
+
+    results_df = pd.DataFrame(results).sort_values("r", ascending=False)
+    # print(results_df[results_df["p"] < 0.05])
+
+    # CHECKING CORRELATION BETWEEN ART & GRADUATION USING MATPLOTLIB
+    plt.scatter(merged["ART_PARTICIPATION_RATE"], merged["PERCENTAGE_GRADUATED"], alpha=0.5)
+    plt.xlabel("Art Participation Rate")
+    plt.ylabel("Graduation Rate")
+    plt.show()
+
 
 # ========================= #
 #     HELPER FUNCTIONS
@@ -81,6 +115,8 @@ def explore(df, name):
     print(df["DISTRICT_NAME"].value_counts())  
     print(df["DISTRICT_NAME"].describe()) 
 
+# helper function "merge_on_district"
+# to facilitate merging all of the dfs on the base df (graduation_rates)
 def merge_on_district(base_df, new_df, name):
     # Only bring in columns that don't already exist in base_df (plus the join key),
     # so repeated columns like DISTRICT_NAME don't collide across merges
