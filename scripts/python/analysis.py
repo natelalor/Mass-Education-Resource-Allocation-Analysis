@@ -6,6 +6,9 @@ import matplotlib.pyplot as plt
 
 # python file to gather clean, sanitized data from SQL to now organize, prep, & analyze using Pandas
 
+# INPUT: 7 cleaned csv files respectively, as seen below
+# OUTPUT: 2 csv files providing insight data to further visualize
+
 def main():
 
     # ============================================================== #
